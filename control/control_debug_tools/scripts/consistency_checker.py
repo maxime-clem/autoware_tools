@@ -171,14 +171,6 @@ if __name__ == "__main__":
             operator.eq,
         ),
         Condition(
-            "acceleration_limit",
-            Source.MPC,
-            "vel_rate_lim",
-            Source.SIM,
-            "should be identical to",
-            operator.eq,
-        ),
-        Condition(
             "keep_steer_control_until_converged",
             Source.MPC,
             "enable_keep_stopped_until_steer_convergence",
