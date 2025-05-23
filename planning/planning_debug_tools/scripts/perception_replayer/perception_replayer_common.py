@@ -50,6 +50,7 @@ class PerceptionReplayerCommon(Node):
         self.rosbag_objects_data = []
         self.rosbag_ego_odom_data = []
         self.rosbag_traffic_signals_data = []
+        self.rosbag_pcd_data = []
 
         # subscriber
         self.sub_odom = self.create_subscription(
@@ -127,7 +128,10 @@ class PerceptionReplayerCommon(Node):
         )
         ego_odom_topic = "/localization/kinematic_state"
         traffic_signals_topic = "/perception/traffic_light_recognition/traffic_signals"
-        topic_filter = StorageFilter(topics=[objects_topic, ego_odom_topic, traffic_signals_topic])
+        pcd_topic = "/perception/obstacle_segmentation/pointcloud"
+        topic_filter = StorageFilter(
+            topics=[objects_topic, ego_odom_topic, traffic_signals_topic, pcd_topic]
+        )
         reader.set_filter(topic_filter)
 
         while reader.has_next():
@@ -172,6 +176,8 @@ class PerceptionReplayerCommon(Node):
                         raise AssertionError(f"Unsupported conversion from {type(msg)}")
                     msg = new_msg
                 self.rosbag_traffic_signals_data.append((stamp, msg))
+            if topic == pcd_topic:
+                self.rosbag_pcd_data.append((stamp, msg))
 
     def kill_online_perception_node(self):
         # kill node if required
@@ -218,7 +224,8 @@ class PerceptionReplayerCommon(Node):
     def find_topics_by_timestamp(self, timestamp):
         objects_data = self.binary_search(self.rosbag_objects_data, timestamp)
         traffic_signals_data = self.binary_search(self.rosbag_traffic_signals_data, timestamp)
-        return objects_data, traffic_signals_data
+        pcd_data = self.binary_search(self.rosbag_pcd_data, timestamp)
+        return objects_data, traffic_signals_data, pcd_data
 
     def find_ego_odom_by_timestamp(self, timestamp):
         return self.binary_search(self.rosbag_ego_odom_data, timestamp)

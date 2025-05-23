@@ -79,6 +79,7 @@ class PerceptionReplayer(PerceptionReplayerCommon):
         msgs = copy.deepcopy(self.find_topics_by_timestamp(self.bag_timestamp))
         objects_msg = msgs[0]
         traffic_signals_msg = msgs[1]
+        pcd_msg = msgs[2]
 
         # objects
         if objects_msg:
@@ -104,6 +105,10 @@ class PerceptionReplayer(PerceptionReplayerCommon):
         elif self.prev_traffic_signals_msg:
             self.prev_traffic_signals_msg.stamp = timestamp
             self.traffic_signals_pub.publish(self.prev_traffic_signals_msg)
+
+        # pointcloud
+        if pcd_msg:
+            self.pointcloud_pub.publish(pcd_msg)
 
     def onPushed(self, event):
         if self.widget.button.isChecked():
