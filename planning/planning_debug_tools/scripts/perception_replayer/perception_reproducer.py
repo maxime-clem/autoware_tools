@@ -22,6 +22,7 @@ from geometry_msgs.msg import PoseWithCovarianceStamped
 import numpy as np
 from perception_replayer_common import PerceptionReplayerCommon
 import rclpy
+from sensor_msgs.msg import PointCloud2
 from utils import StopWatch
 from utils import create_empty_pointcloud
 from utils import pub_route
@@ -52,11 +53,11 @@ class PerceptionReproducer(PerceptionReplayerCommon):
         self.last_sequenced_ego_pose = None
 
         pose_timestamp, self.prev_ego_odom_msg = self.rosbag_ego_odom_data[0]
-        self.perv_objects_msg, self.prev_traffic_signals_msg = self.find_topics_by_timestamp(
-            pose_timestamp
+        self.prev_objects_msg, self.prev_traffic_signals_msg, self.prev_pointcloud_msg = (
+            self.find_topics_by_timestamp(pose_timestamp)
         )
         self.memorized_original_objects_msg = self.memorized_noised_objects_msg = (
-            self.perv_objects_msg
+            self.prev_objects_msg
         )
 
         # start main timer callback
@@ -94,7 +95,7 @@ class PerceptionReproducer(PerceptionReplayerCommon):
         timestamp = self.get_clock().now()
         timestamp_msg = timestamp.to_msg()
 
-        if self.args.detected_object:
+        if self.args.detected_object and not self.args.pointcloud:
             pointcloud_msg = create_empty_pointcloud(timestamp_msg)
             self.pointcloud_pub.publish(pointcloud_msg)
 
@@ -189,14 +190,17 @@ class PerceptionReproducer(PerceptionReplayerCommon):
             ego_odom_idx = self.reproduce_sequence_indices.popleft()
             # extract messages by the nearest ego odom timestamp
             pose_timestamp, ego_odom_msg = self.rosbag_ego_odom_data[ego_odom_idx]
-            objects_msg, traffic_signals_msg = self.find_topics_by_timestamp(pose_timestamp)
+            objects_msg, traffic_signals_msg, pointcloud_msg = self.find_topics_by_timestamp(
+                pose_timestamp
+            )
             self.stopwatch.toc("find_topics_by_timestamp")
             # update cool down info.
             self.ego_odom_id2last_published_timestamp[ego_odom_idx] = timestamp
             self.cool_down_indices.append(ego_odom_idx)
         else:
             ego_odom_msg = self.prev_ego_odom_msg
-            objects_msg = self.perv_objects_msg
+            objects_msg = self.prev_objects_msg
+            pointcloud_msg = self.prev_pointcloud_msg
             traffic_signals_msg = self.prev_traffic_signals_msg
 
         # Transform and publish messages.
@@ -206,9 +210,9 @@ class PerceptionReproducer(PerceptionReplayerCommon):
             self.prev_ego_odom_msg = ego_odom_msg
             self.recorded_ego_pub.publish(ego_odom_msg)
         # objects
-        objects_msg = objects_msg if objects_msg else self.perv_objects_msg
+        objects_msg = objects_msg if objects_msg else self.prev_objects_msg
         if objects_msg:
-            self.perv_objects_msg = objects_msg
+            self.prev_objects_msg = objects_msg
             objects_msg.header.stamp = timestamp_msg
 
             # add noise to repeat published objects
@@ -220,6 +224,12 @@ class PerceptionReproducer(PerceptionReplayerCommon):
                 translate_objects_coordinate(ego_pose, ego_odom_msg.pose.pose, objects_msg)
 
             self.objects_pub.publish(objects_msg)
+
+        pointcloud_msg = pointcloud_msg if pointcloud_msg else self.prev_pointcloud_msg
+        if self.args.pointcloud and pointcloud_msg:
+            self.prev_pointcloud_msg = pointcloud_msg
+            pointcloud_msg.header.stamp = timestamp_msg
+            self.pointcloud_pub.publish(pointcloud_msg)
 
         # traffic signals
         traffic_signals_msg = (
@@ -297,6 +307,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-t", "--tracked-object", help="publish tracked object", action="store_true"
     )
+    parser.add_argument("-pcd", "--pointcloud", help="publish pointcloud", action="store_true")
     parser.add_argument(
         "-f",
         "--rosbag-format",

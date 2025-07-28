@@ -59,7 +59,7 @@ class PerceptionReplayer(PerceptionReplayerCommon):
 
         self.kill_online_perception_node()
 
-        if self.args.detected_object:
+        if self.args.detected_object and not self.args.pointcloud:
             pointcloud_msg = create_empty_pointcloud(timestamp)
             self.pointcloud_pub.publish(pointcloud_msg)
 
@@ -79,6 +79,7 @@ class PerceptionReplayer(PerceptionReplayerCommon):
         msgs = copy.deepcopy(self.find_topics_by_timestamp(self.bag_timestamp))
         objects_msg = msgs[0]
         traffic_signals_msg = msgs[1]
+        pointcloud_msg = msgs[2]
 
         # objects
         if objects_msg:
@@ -104,6 +105,12 @@ class PerceptionReplayer(PerceptionReplayerCommon):
         elif self.prev_traffic_signals_msg:
             self.prev_traffic_signals_msg.stamp = timestamp
             self.traffic_signals_pub.publish(self.prev_traffic_signals_msg)
+        # pointcloud
+        if pointcloud_msg:
+            self.prev_pointcloud_msg = pointcloud_msg
+            self.pointcloud_pub.publish(
+                self.transform_pointcloud(pointcloud_msg, self.bag_timestamp, timestamp)
+            )
 
     def onPushed(self, event):
         if self.widget.button.isChecked():
@@ -186,6 +193,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-t", "--tracked-object", help="publish tracked object", action="store_true"
     )
+    parser.add_argument("-pcd", "--pointcloud", help="publish pointcloud", action="store_true")
     parser.add_argument(
         "-f",
         "--rosbag-format",
