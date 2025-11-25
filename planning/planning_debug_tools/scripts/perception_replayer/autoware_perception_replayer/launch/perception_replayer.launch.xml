@@ -1,0 +1,33 @@
+<launch>
+  <arg name="bag_path" description="Path to the rosbag file or directory"/>
+  <arg name="detected_object" default="false" description="Publish detected objects"/>
+  <arg name="tracked_object" default="false" description="Publish tracked objects"/>
+  <arg name="rosbag_format" default="db3" description="Rosbag format"/>
+  <arg name="verbose" default="false" description="Verbose output"/>
+  <arg name="search_radius" default="1.5" description="Search radius for ego odom"/>
+  <arg name="reproduce_cool_down" default="80.0" description="Cool down time for reproduction"/>
+  <arg name="noise" default="true" description="Add noise to perception"/>
+  <arg name="mode" default="replayer" description="Mode: replayer (GUI) or reproducer (Headless)"/>
+
+  <group if="$(eval &quot;'$(var mode)' == 'replayer'&quot;)">
+    <node pkg="autoware_perception_replayer" exec="perception_replayer" name="perception_replayer" output="screen">
+      <param name="bag_path" value="$(var bag_path)"/>
+      <param name="detected_object" value="$(var detected_object)"/>
+      <param name="tracked_object" value="$(var tracked_object)"/>
+      <param name="rosbag_format" value="$(var rosbag_format)"/>
+    </node>
+  </group>
+
+  <group if="$(eval &quot;'$(var mode)' == 'reproducer'&quot;)">
+    <node pkg="autoware_perception_replayer" exec="perception_reproducer" name="perception_reproducer" output="screen">
+      <param name="bag_path" value="$(var bag_path)"/>
+      <param name="detected_object" value="$(var detected_object)"/>
+      <param name="tracked_object" value="$(var tracked_object)"/>
+      <param name="rosbag_format" value="$(var rosbag_format)"/>
+      <param name="verbose" value="$(var verbose)"/>
+      <param name="search_radius" value="$(var search_radius)"/>
+      <param name="reproduce_cool_down" value="$(var reproduce_cool_down)"/>
+      <param name="noise" value="$(var noise)"/>
+    </node>
+  </group>
+</launch>
